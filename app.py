@@ -45,19 +45,19 @@ st.caption("🎯 Schnellstart – ein Beispielszenario laden:")
 preset_col1, preset_col2, preset_col3 = st.columns(3)
 with preset_col1:
     st.button(
-        "🏙️ Kompaktstadt", use_container_width=True,
+        "🏙️ Kompaktstadt", width="stretch",
         on_click=apply_preset, args=(18, 4, 6, 0.3, 1, 5),
         help="Kleines, dicht bebautes Gebiet mit eher gleichverteilter Nachfrage.",
     )
 with preset_col2:
     st.button(
-        "🚉 Pendlerstadt", use_container_width=True,
+        "🚉 Pendlerstadt", width="stretch",
         on_click=apply_preset, args=(25, 5, 8, 0.8, 1, 12),
         help="Starke Konzentration der Nachfrage auf einen zentralen Bahnhof/Hub - klassisches Pendlermuster.",
     )
 with preset_col3:
     st.button(
-        "🌆 Mehrere Zentren", use_container_width=True,
+        "🌆 Mehrere Zentren", width="stretch",
         on_click=apply_preset, args=(30, 6, 7, 0.6, 3, 8),
         help="Größere Stadt mit mehreren Nachfrage-Zentren statt nur einem.",
     )
@@ -87,7 +87,7 @@ with st.sidebar:
     seed = st.number_input("Zufalls-Seed", step=1, key="seed_input")
 
     st.button(
-        "🎲 Neues Szenario generieren", use_container_width=True, on_click=randomize_seed,
+        "🎲 Neues Szenario generieren", width="stretch", on_click=randomize_seed,
         help="Würfelt einen neuen Zufalls-Seed und erzeugt damit ein komplett neues Szenario - "
         "praktisch, ohne selbst eine neue Seed-Zahl eintippen zu müssen.",
     )
@@ -126,7 +126,7 @@ with st.expander("📍 Haltestellen (nicht editierbar – Nachfrage ist an die G
         "Gesamtnachfrage": total_demand_per_stop.round(0),
         "Hub": ["⭐" if i in hub_idxs else "" for i in range(n_stops)],
     })
-    st.dataframe(stops_df, use_container_width=True, hide_index=True)
+    st.dataframe(stops_df, width="stretch", hide_index=True)
 
 lines_star = star_network_construction(coords, demand, n_lines, max_line_length)
 lines_greedy = demand_greedy_construction(coords, demand, n_lines, max_line_length)
@@ -168,7 +168,7 @@ if direct_gain > 1.0:
     )
 
 fig_best = build_network_figure(coords, best["lines"], hub_idxs, highlight_unreachable=stops_with_unreachable_demand(best["lines"], demand))
-st.plotly_chart(fig_best, use_container_width=True, key="primary_best_plot")
+st.plotly_chart(fig_best, width="stretch", key="primary_best_plot")
 
 pdf_bytes_best = generate_network_plan_pdf("Optimiertes Netz", best["lines"], ids, demand)
 st.download_button(
@@ -202,7 +202,7 @@ with st.expander("🔧 Wie wir das erreichen – vollständiger Methodenvergleic
                 "Nicht erreichbar": f"{c['unreachable_pct']:.1f}%",
                 "Gesamtnachfrage": f"{c['total_demand']:.0f}",
             })
-        st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(comp_rows), width="stretch", hide_index=True)
         st.caption(
             "Beide Methoden werden mit derselben Bewertungsfunktion gegen dieselbe Nachfragematrix "
             "verglichen - fair vergleichbar, auch wenn die Konstruktionsstrategien sehr unterschiedlich sind."
@@ -249,12 +249,12 @@ if st.session_state.get("feedback_given"):
 else:
     fb_col1, fb_col2 = st.columns(2)
     with fb_col1:
-        if st.button("👍 Ja", key="feedback_up_btn", use_container_width=True):
+        if st.button("👍 Ja", key="feedback_up_btn", width="stretch"):
             log_feedback("up")
             st.session_state["feedback_given"] = "up"
             st.rerun()
     with fb_col2:
-        if st.button("👎 Nein", key="feedback_down_btn", use_container_width=True):
+        if st.button("👎 Nein", key="feedback_down_btn", width="stretch"):
             log_feedback("down")
             st.session_state["feedback_given"] = "down"
             st.rerun()

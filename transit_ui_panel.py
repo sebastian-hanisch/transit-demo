@@ -38,13 +38,13 @@ def render_network_panel(prefix, label, lines, coords, ids, demand, hub_idxs):
 
     fig = build_network_figure(coords, subset_lines, hub_idxs, highlight_unreachable=stops_with_unreachable_demand(subset_lines, demand))
     plot_slot = st.empty()
-    plot_slot.plotly_chart(fig, use_container_width=True, key=f"{prefix}_plot_{step}")
+    plot_slot.plotly_chart(fig, width="stretch", key=f"{prefix}_plot_{step}")
     st.caption("🔴 Rot markierte Haltestellen haben mindestens eine Nachfragebeziehung, die weder direkt noch mit einem Umstieg erreichbar ist. Grau = noch auf keiner Linie.")
 
     if auto_play:
         for s in range(1, n_lines_built + 1):
             f = build_network_figure(coords, lines[:s], hub_idxs, highlight_unreachable=stops_with_unreachable_demand(lines[:s], demand))
-            plot_slot.plotly_chart(f, use_container_width=True, key=f"{prefix}_auto_{s}")
+            plot_slot.plotly_chart(f, width="stretch", key=f"{prefix}_auto_{s}")
             time.sleep(0.3)
 
     pdf_bytes = generate_network_plan_pdf(label, lines, ids, demand)
