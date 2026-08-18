@@ -174,7 +174,7 @@ Seed-Zahl eintippen zu müssen.
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate          # Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
 streamlit run app.py
@@ -187,7 +187,7 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-57 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
+59 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
 
 ## 3. Kostenlos online stellen (Streamlit Community Cloud)
 
