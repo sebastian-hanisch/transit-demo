@@ -67,4 +67,9 @@ def build_network_figure(coords, lines, hub_idxs=None, highlight_unreachable=Non
         height=520, margin=dict(l=10, r=10, t=30, b=10),
         legend=dict(orientation="h", yanchor="bottom", y=1.02),
     )
+    # fixedrange auf beiden Achsen: verhindert Pinch-Zoom/Drag-Pan im Chart,
+    # damit auf Touch-Geräten stattdessen die Seite normal gescrollt wird
+    # (Hover-Tooltips bleiben davon unberührt).
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
     return fig
