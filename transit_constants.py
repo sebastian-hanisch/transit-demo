@@ -9,5 +9,3 @@ EPS = 1e-9
 DEFAULT_N_STOPS = 20
 DEFAULT_N_LINES = 4
 DEFAULT_MAX_LINE_LENGTH = 7  # max. Anzahl Haltestellen je Linie
-
-FEEDBACK_FILE = "feedback_log.csv"
