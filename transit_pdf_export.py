@@ -31,7 +31,7 @@ def generate_network_plan_pdf(label, lines, ids, demand):
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(0, 6, f"Ohne Umstieg erreichbar: {stats['direct_pct']:.1f}% der Nachfrage", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(0, 6, f"Mit einem Umstieg erreichbar: {stats['one_transfer_pct']:.1f}% der Nachfrage", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.cell(0, 6, f"Nicht erreichbar (>1 Umstieg noetig): {stats['unreachable_pct']:.1f}% der Nachfrage", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.cell(0, 6, f"Nicht erreichbar (>1 Umstieg nötig): {stats['unreachable_pct']:.1f}% der Nachfrage", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.cell(0, 6, f"Anzahl Linien: {sum(1 for l in lines if l)}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(4)
 
