@@ -152,10 +152,15 @@ m1.metric(
     "Ohne Umstieg erreichbar", f"{best['direct_pct']:.1f}%",
     delta=f"{direct_gain:+.1f} Pp. ggü. Alternative",
 )
-m2.metric("Mit 1 Umstieg erreichbar", f"{best['one_transfer_pct']:.1f}%")
+m2.metric(
+    "Mit 1 Umstieg erreichbar", f"{best['one_transfer_pct']:.1f}%",
+    help="Genau ein Umstieg nötig (ohne die direkten Verbindungen links).",
+)
 m3.metric(
-    "Nicht erreichbar", f"{best['unreachable_pct']:.1f}%",
+    "Nicht erreichbar (>1 Umstieg nötig)", f"{best['unreachable_pct']:.1f}%",
     delta=f"{unreachable_diff:+.1f} Pp. ggü. Alternative", delta_color="inverse",
+    help="Haltestellenpaare, die weder direkt noch mit genau einem Umstieg verbunden sind. Dazu zählen "
+         "Haltestellen, die auf keiner Linie liegen, und Paare, die erst mit zwei oder mehr Umstiegen erreichbar wären.",
 )
 
 if direct_gain > 1.0:
@@ -175,7 +180,10 @@ st.download_button(
     file_name="liniennetzplan_optimiert.pdf", mime="application/pdf", key="primary_pdf_download",
 )
 
-st.caption("Ermittelt mit der besseren von zwei eigenen Methoden für dieses Szenario. Details unten.")
+st.caption(
+    "Ermittelt mit der besseren von zwei eigenen Methoden für dieses Szenario (zuerst wenigste nicht "
+    "erreichbare Nachfrage, dann meiste direkte Verbindungen). Details unten."
+)
 
 st.markdown("---")
 
@@ -198,7 +206,7 @@ with st.expander("🔧 Wie wir das erreichen – vollständiger Methodenvergleic
                 "Methode": c["label"],
                 "Ohne Umstieg": f"{c['direct_pct']:.1f}%",
                 "Mit 1 Umstieg": f"{c['one_transfer_pct']:.1f}%",
-                "Nicht erreichbar": f"{c['unreachable_pct']:.1f}%",
+                "Nicht erreichbar (>1 Umstieg nötig)": f"{c['unreachable_pct']:.1f}%",
                 "Gesamtnachfrage": f"{c['total_demand']:.0f}",
             })
         st.dataframe(pd.DataFrame(comp_rows), width="stretch", hide_index=True)
@@ -229,9 +237,19 @@ immer wieder auf dieselben wenigen Haltestellen konzentriert.
 
 **Servicequalität statt Kosten:** Anders als bei der Tourenplanung-Demo (€/h/CO₂) zählt
 hier vor allem eine andere Kennzahl: der Anteil der Fahrgastnachfrage, der ohne Umstieg
-bzw. mit höchstens einem Umstieg erreichbar ist. Das ist die für einen Nahverkehrsbetrieb
-tatsächlich relevante Größe - Busse fahren ohnehin nach Fahrplan, die "Ersparnis" liegt in
-Fahrgastzufriedenheit und Auslastung, nicht in direkten Kosten.
+bzw. mit genau einem Umstieg erreichbar ist (alles Übrige gilt als "nicht erreichbar": Paare,
+die zwei oder mehr Umstiege bräuchten, und Haltestellen, die auf keiner Linie liegen). Das
+ist die für einen Nahverkehrsbetrieb tatsächlich relevante Größe - Busse fahren ohnehin nach
+Fahrplan, die "Ersparnis" liegt in Fahrgastzufriedenheit und Auslastung, nicht in direkten
+Kosten.
+
+**Welches Netz zuerst gezeigt wird:** Die Primäransicht nimmt das Netz mit der geringsten
+nicht erreichbaren Nachfrage, bei Gleichstand das mit dem höchsten Anteil direkter
+Verbindungen. Das kann das Sternnetz sein, obwohl die nachfrage-optimierte Methode mehr
+direkte Verbindungen schafft: lässt sie Haltestellen aus (z. B. im Beispiel "Mehrere Zentren"
+liegen 3 von 30 Haltestellen auf keiner Linie, 13,0 % der Nachfrage sind nicht erreichbar),
+gewinnt das lückenlose Sternnetz (34,5 % statt 57,5 % direkte Verbindungen). Beide Netze mit
+allen Kennzahlen stehen im Vergleichs-Tab.
 
 **In echten Projekten** kämen meist weitere Nebenbedingungen dazu (Taktfrequenzen,
 Umstiegszeiten, Fahrzeugkapazität, mehrstufige Umstiege, tatsächliches Straßennetz statt

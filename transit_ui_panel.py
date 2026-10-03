@@ -34,7 +34,7 @@ def render_network_panel(prefix, label, lines, coords, ids, demand, hub_idxs):
     m1, m2, m3 = st.columns(3)
     m1.metric("Ohne Umstieg erreichbar", f"{stats_step['direct_pct']:.1f}%")
     m2.metric("Mit 1 Umstieg erreichbar", f"{stats_step['one_transfer_pct']:.1f}%")
-    m3.metric("Nicht erreichbar", f"{stats_step['unreachable_pct']:.1f}%")
+    m3.metric("Nicht erreichbar (>1 Umstieg nötig)", f"{stats_step['unreachable_pct']:.1f}%")
 
     fig = build_network_figure(coords, subset_lines, hub_idxs, highlight_unreachable=stops_with_unreachable_demand(subset_lines, demand))
     plot_slot = st.empty()
