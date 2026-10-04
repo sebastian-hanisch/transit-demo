@@ -64,7 +64,8 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
 - **Primäransicht "Ihr optimiertes Liniennetz"** von Anfang an (nicht erst
   nachträglich wie bei der Tourenplanung-Demo): zeigt die bessere der beiden Methoden
   direkt, kein Algorithmus-Name in der Überschrift, Methode als kleine Caption
-  genannt. Vollständiger Methodenvergleich liegt im Expander "Wie wir das erreichen".
+  genannt; die grüne Erfolgsmeldung nennt die tatsächlich beste
+  Methode (je nach Szenario Sternnetz oder nachfrage-optimiert). Vollständiger Methodenvergleich liegt im Expander "Wie wir das erreichen".
 - **Animation:** Schritt-Regler + Auto-Play zeigt, wie sich die Servicequalität
   aufbaut, während Linie für Linie hinzukommt.
 - **Drei Ein-Klick-Beispielszenarien:** Kompaktstadt, Pendlerstadt, Mehrere Zentren.
@@ -107,7 +108,7 @@ abgedeckte Haltestellen (`test_demand_greedy_achieves_full_coverage`).
 | Nachfrage-optimiert | 66,6-68,9 % | 20/20 | 0,0 % |
 
 Beide erreichen jetzt vollständige Abdeckung und 0 % unerreichbar, aber die
-nachfrage-optimierte Methode liefert 18-24 Prozentpunkte mehr direkte (umstiegsfreie)
+nachfrage-optimierte Methode liefert 18-23 Prozentpunkte mehr direkte (umstiegsfreie)
 Erreichbarkeit - ein sauberer, verdienter Vorteil, kein Zufallsergebnis
 (`test_demand_greedy_generally_beats_star_on_direct_connectivity`).
 
@@ -208,4 +209,4 @@ pytest tests/ -v
 - Test an einem echten Mobilgerät
 ---
 
-Teil des [Operations-Research-Demo-Portfolios](https://sebastianhanisch.net/demos.html) von [Sebastian Hanisch](https://sebastianhanisch.net) — Operations Research und Machine Learning. Interesse an einer maßgeschneiderten Lösung? [Kontakt aufnehmen](https://sebastianhanisch.net/kontakt.html).
+Diese Demo ist Teil des Portfolios von [Sebastian Hanisch](https://sebastianhanisch.net) – Operations Research und Machine Learning ([Über mich](https://sebastianhanisch.net/ueber-mich.html)). Mehr zum Thema: [ÖPNV und Fernverkehr optimieren](https://sebastianhanisch.net/oepnv-fernverkehr-optimierung.html).

@@ -19,7 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from transit_demand import generate_stops_and_demand
-from transit_evaluation import evaluate_network, stops_with_unreachable_demand
+from transit_evaluation import METHOD_PHRASES, evaluate_network, stops_with_unreachable_demand
 from transit_heuristics import demand_greedy_construction, star_network_construction
 from transit_pdf_export import generate_network_plan_pdf
 from transit_presets import apply_preset, bounds, init_session_state_defaults, load_permalink_settings, randomize_seed, sync_query_params
@@ -159,8 +159,9 @@ m3.metric(
 )
 
 if direct_gain > 1.0:
+    # Die Meldung nennt die tatsächlich beste Methode (nicht immer die nachfrage-optimierte).
     st.success(
-        f"💡 Mit nachfrage-optimierter Liniengestaltung erreichen **{best['direct_pct']:.1f}%** Ihrer "
+        f"💡 Mit {METHOD_PHRASES[best['key']]} erreichen **{best['direct_pct']:.1f}%** Ihrer "
         f"Fahrgäste ihr Ziel ohne Umzusteigen – **{direct_gain:.1f} Prozentpunkte mehr** als bei "
         f"'{baseline['label']}'. Weniger Umstiege bedeuten kürzere Reisezeiten und in der Regel "
         f"höhere Fahrgastzufriedenheit und Auslastung."
@@ -243,6 +244,6 @@ st.markdown("---")
 
 st.caption(
     "Diese Demo ist Teil des Portfolios von [Sebastian Hanisch](https://sebastianhanisch.net) – "
-    "Operations Research und Machine Learning. Interesse an einer maßgeschneiderten Lösung für "
-    "Ihr Unternehmen? [Kontakt aufnehmen](https://sebastianhanisch.net/kontakt.html)"
+    "Operations Research und Machine Learning ([Über mich](https://sebastianhanisch.net/ueber-mich.html)). "
+    "Mehr zum Thema: [ÖPNV und Fernverkehr optimieren](https://sebastianhanisch.net/oepnv-fernverkehr-optimierung.html)."
 )

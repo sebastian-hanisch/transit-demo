@@ -9,6 +9,13 @@ Bewertungslogik dieser Demo (anders als bei der Touren- oder Packungsdemo).
 from collections import defaultdict
 
 
+# Methodenname im Dativ-Satzbau der Erfolgsmeldung ("Mit ... erreichen ..."), je Methoden-Schlüssel der App.
+METHOD_PHRASES = {
+    "star": "dem Sternnetz",
+    "greedy": "nachfrage-optimierter Liniengestaltung",
+}
+
+
 def evaluate_network(lines, demand):
     """Gibt ein Dict mit nachfragegewichteten Anteilen zurück: direct_pct,
     one_transfer_pct, unreachable_pct (in %, summieren sich zu 100), sowie

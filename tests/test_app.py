@@ -192,6 +192,41 @@ def test_permalink_url_params_are_unique():
     assert len(params) == len(set(params))
 
 
+def _app_with(**query):
+    at = AppTest.from_file(APP_PATH)
+    for k, v in query.items():
+        at.query_params[k] = v
+    at.run(timeout=TIMEOUT)
+    assert_ok(at)
+    return at
+
+
+def test_success_message_names_the_method_that_is_actually_best():
+    """Regression: die Erfolgsmeldung nannte immer 'nachfrage-optimiert', auch wenn das Sternnetz die beste
+    Methode ist (hier: 7 Haltestellen, 3 Linien, max. 3 Haltestellen, Pendler-Konzentration 0,6, 2 Hubs,
+    Seed 36: Sternnetz 0 % unerreichbar, nachfrage-optimiert 32 %; Sternnetz +7,1 Pp. direkt)."""
+    # unabhängige Referenz: eigene Auswertung beider Netze und eigene Rangregel
+    coords, demand, _ = generate_stops_and_demand(7, 36, hub_concentration=0.6, n_hubs=2)
+    s = evaluate_network(star_network_construction(coords, demand, 3, 3), demand)
+    g = evaluate_network(demand_greedy_construction(coords, demand, 3, 3), demand)
+    assert s["unreachable_pct"] < g["unreachable_pct"] and s["direct_pct"] - g["direct_pct"] > 1.0
+
+    at = _app_with(n_stops="7", n_lines="3", max_len="3", hub_conc="0.6", n_hubs="2", seed="36")
+    msgs = [m.value for m in at.success]
+    assert len(msgs) == 1
+    assert "Sternnetz" in msgs[0] and "nachfrage-optimiert" not in msgs[0].split("als bei")[0]
+    assert f"{s['direct_pct']:.1f}%" in msgs[0]
+    assert "'Nachfrage-optimiert'" in msgs[0]  # die Alternative
+
+
+def test_success_message_still_names_demand_optimised_when_it_is_best():
+    at = _app_with(n_stops="20", n_lines="4", max_len="7", hub_conc="0.6", n_hubs="2", seed="1")
+    msgs = [m.value for m in at.success]
+    assert len(msgs) == 1
+    assert "nachfrage-optimierter Liniengestaltung" in msgs[0].split("als bei")[0]
+    assert "'Sternnetz'" in msgs[0]
+
+
 # ==========================================================================
 # 2. Unit-Tests der reinen Funktionen
 # ==========================================================================
