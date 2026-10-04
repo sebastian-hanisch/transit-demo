@@ -38,7 +38,6 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
 | `transit_evaluation.py` | Umsteige-Bewertung (direkt/1 Umstieg/unerreichbar) |
 | `transit_visualization.py` | 2D-Netzkarte (Plotly) |
 | `transit_pdf_export.py` | PDF-Liniennetzplan-Erzeugung |
-| `transit_feedback.py` | Feedback-Logging |
 | `transit_ui_panel.py` | Wiederverwendbares UI-Panel je Heuristik |
 | `transit_presets.py` | Beispielszenarien, Permalink-Logik (`SETTING_SPECS`) |
 
@@ -69,7 +68,7 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
 - **Animation:** Schritt-Regler + Auto-Play zeigt, wie sich die Servicequalität
   aufbaut, während Linie für Linie hinzukommt.
 - **Drei Ein-Klick-Beispielszenarien:** Kompaktstadt, Pendlerstadt, Mehrere Zentren.
-- **Permalink, Feedback-Mechanismus, PDF-Export:** wie bei den anderen Demos.
+- **Permalink und PDF-Export:** wie bei den anderen Demos.
 - **Von Anfang an mit dem `SETTING_SPECS`-Muster gebaut** (Wahrheitsquelle für
   Wertebereiche) und von Anfang an gegen NaN/Infinity/außerhalb-des-Bereichs-Werte im
   Permalink abgesichert - beides war bei der Tourenplanung-Demo erst nachträglich
