@@ -35,7 +35,7 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
 | `transit_constants.py` | Konstanten |
 | `transit_demand.py` | Haltestellen- und Nachfragematrix-Generierung |
 | `transit_heuristics.py` | Sternnetz- und nachfrage-optimierte Liniengenerierung |
-| `transit_evaluation.py` | Umsteige-Bewertung (direkt/1 Umstieg/unerreichbar) |
+| `transit_evaluation.py` | Umsteige-Bewertung (direkt / genau 1 Umstieg / nicht erreichbar) |
 | `transit_visualization.py` | 2D-Netzkarte (Plotly) |
 | `transit_pdf_export.py` | PDF-Liniennetzplan-Erzeugung |
 | `transit_ui_panel.py` | Wiederverwendbares UI-Panel je Heuristik |
@@ -56,8 +56,9 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
     unten).
 - **Servicequalität statt Kosten als Kennzahl:** Anders als bei der Tourenplanung-Demo
   (€/h/CO₂) zählt hier der Anteil der Fahrgastnachfrage, der ohne Umstieg bzw. mit
-  höchstens einem Umstieg erreichbar ist - die für einen Nahverkehrsbetrieb tatsächlich
-  relevante Größe. Bewusst **keine** künstliche €-Umrechnung, da Busse ohnehin nach
+  genau einem Umstieg erreichbar ist (der Rest gilt als "nicht erreichbar", siehe
+  Abschnitt "Definition von 'nicht erreichbar'") - die für einen Nahverkehrsbetrieb
+  tatsächlich relevante Größe. Bewusst **keine** künstliche €-Umrechnung, da Busse ohnehin nach
   Fahrplan fahren und die "Ersparnis" in Fahrgastzufriedenheit liegt, nicht in direkten
   Betriebskosten.
 - **Primäransicht "Ihr optimiertes Liniennetz"** von Anfang an (nicht erst
@@ -106,9 +107,10 @@ abgedeckte Haltestellen (`test_demand_greedy_achieves_full_coverage`).
 | Sternnetz | 44,9-48,1 % | 20/20 | 0,0 % |
 | Nachfrage-optimiert | 66,6-68,9 % | 20/20 | 0,0 % |
 
-Beide erreichen jetzt vollständige Abdeckung und 0 % unerreichbar, aber die
-nachfrage-optimierte Methode liefert 18-23 Prozentpunkte mehr direkte (umstiegsfreie)
-Erreichbarkeit - ein sauberer, verdienter Vorteil, kein Zufallsergebnis
+Bei dieser Konfiguration erreichen beide vollständige Abdeckung und 0 % nicht
+erreichbar, aber die nachfrage-optimierte Methode liefert 18,5-22,9 Prozentpunkte mehr
+direkte (umstiegsfreie) Erreichbarkeit (je Instanz nachgerechnet, nicht aus den
+Spannen der Tabelle abgeleitet) - ein sauberer, verdienter Vorteil, kein Zufallsergebnis
 (`test_demand_greedy_generally_beats_star_on_direct_connectivity`).
 
 ## Umsteige-Bewertungslogik: die neue, risikoreichste Komponente
@@ -120,6 +122,30 @@ gegen handkonstruierte Fälle mit bekanntem korrektem Ergebnis geprüft (nicht n
 strukturell validiert): mehrere Linien mit gemeinsamer Haltestelle, ein
 Mehrfach-Umsteigeknoten (eine Haltestelle auf drei Linien gleichzeitig), leere
 Linienliste, keine Nachfrage. Alle Fälle in `test_evaluate_network_*` festgeschrieben.
+
+## Definition von "nicht erreichbar" und Auswahlregel der Primäransicht
+
+**"Nicht erreichbar" heißt "weder direkt noch mit genau einem Umstieg".** Die Kennzahl
+`unreachable_pct` zählt auch Haltestellenpaare, die in einem zusammenhängenden Netz nur mit
+zwei oder mehr Umstiegen verbunden wären (Linie A - B - C hintereinander, Halt auf A nach
+Halt auf C). Die Oberfläche trägt das jetzt im Label ("Nicht erreichbar (>1 Umstieg nötig)",
+wie schon im PDF-Export); `test_pairs_needing_two_transfers_count_as_not_reachable_despite_connected_network`
+hält es fest. Wie relevant das ist, zeigt eine Stichprobe über 300 zufällige Konfigurationen
+(6-40 Haltestellen, 2-8 Linien, Länge 3-12): beim Sternnetz nie (alle Linien teilen den
+Hub, jedes Paar braucht höchstens einen Umstieg), beim nachfrage-optimierten Netz in 49 von
+300 Fällen, im Extremfall mit 52 % der Nachfrage. Die Kennzahl "Mit 1 Umstieg erreichbar" ist
+dabei exklusiv (genau ein Umstieg, ohne die direkten Verbindungen); "höchstens einer" wäre
+direkt plus genau einer.
+
+**Welches Netz die Primäransicht zeigt:** das mit der geringsten nicht erreichbaren
+Nachfrage, bei Gleichstand das mit dem höchsten Anteil direkter Verbindungen. Das kann das
+Sternnetz sein, obwohl die nachfrage-optimierte Methode mehr direkte Verbindungen schafft -
+etwa im Beispiel "Mehrere Zentren" (30 Haltestellen, 6 Linien, Länge 7, 3 Hubs, Seed 8): das
+nachfrage-optimierte Netz lässt 3 von 30 Haltestellen aus (27 abgedeckt, ein
+zusammenhängendes Netz), 13,0 % der Nachfrage sind nicht erreichbar, dafür 57,5 % direkt; das
+Sternnetz deckt alles ab (0 % nicht erreichbar), hat aber nur 34,5 % direkte Verbindungen und
+wird deshalb als "optimiert" gezeigt. Die "0 % unerreichbar"-Aussage der Ergebnistabelle oben
+gilt nur für die dort genannte Benchmark-Konfiguration (20 Haltestellen, 4 Linien, Länge 7).
 
 ## Ein Fund bei der gezielten Bug-Suche: halb-fertige Funktion
 
@@ -189,7 +215,7 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-59 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
+58 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
 
 ## 3. Kostenlos online stellen (Streamlit Community Cloud)
 

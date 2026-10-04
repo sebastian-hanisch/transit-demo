@@ -46,7 +46,7 @@ def test_primary_view_shows_three_service_metrics():
     at = fresh_app()
     assert_ok(at)
     labels = [m.label for m in at.metric[:3]]
-    assert labels == ["Ohne Umstieg erreichbar", "Mit 1 Umstieg erreichbar", "Nicht erreichbar"]
+    assert labels == ["Ohne Umstieg erreichbar", "Mit 1 Umstieg erreichbar", "Nicht erreichbar (>1 Umstieg nötig)"]
 
 
 def test_primary_view_no_algorithm_name_in_headline():
@@ -339,6 +339,24 @@ def test_stops_with_unreachable_demand_was_dead_code_now_wired_up():
 
     affected = stops_with_unreachable_demand(lines, demand)
     assert affected == {0, 2}  # 1 und 3 haben nur die direkte/keine Beziehung
+
+
+def test_pairs_needing_two_transfers_count_as_not_reachable_despite_connected_network():
+    """Dokumentiert die Definition der Kennzahl: 'nicht erreichbar' heißt 'weder direkt noch mit
+    genau einem Umstieg' - auch ein zusammenhängendes Netz kann Paare enthalten, die zwei
+    Umstiege brauchen (Linie A - B - C hintereinander, Halt 0 -> Halt 5)."""
+    from transit_evaluation import evaluate_network
+
+    lines = [[0, 1], [1, 2, 3], [3, 4, 5]]  # zusammenhängend: A teilt Halt 1 mit B, B teilt Halt 3 mit C
+    demand = np.zeros((6, 6))
+    demand[0][5] = demand[5][0] = 10  # braucht zwei Umstiege (A -> B -> C)
+    demand[0][2] = demand[2][0] = 10  # genau ein Umstieg (A -> B)
+    demand[1][2] = demand[2][1] = 20  # direkt (Linie B)
+
+    stats = evaluate_network(lines, demand)
+    assert stats["direct_pct"] == 50.0
+    assert stats["one_transfer_pct"] == 25.0
+    assert stats["unreachable_pct"] == 25.0  # zwei Umstiege zählen als 'nicht erreichbar'
 
 
 def test_unreachable_highlighting_wired_into_all_map_calls():
