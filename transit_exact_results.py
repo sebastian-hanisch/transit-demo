@@ -25,3 +25,13 @@ def stat_text(s, digits=1):
 
 def share_text(p):
     return f"{p['k']} von {p['n']}"
+
+
+CPSAT_PATH = pathlib.Path(os.environ.get("TRANSIT_CPSAT_RESULTS_PATH") or pathlib.Path(__file__).parent / "data" / "cpsat_results.json")
+
+
+@lru_cache(maxsize=1)
+def load_cpsat():
+    """Messreihe zum CP-SAT-Modell (data/cpsat_results.json, erzeugt von tools/sweep_cpsat.py): Übereinstimmung, Ablation, Skalierung."""
+    with open(CPSAT_PATH, encoding="utf-8") as fh:
+        return json.load(fh)

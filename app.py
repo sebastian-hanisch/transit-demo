@@ -19,6 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from transit_demand import generate_stops_and_demand
+import transit_cpsat as cpsat
 import transit_exact as exact
 import transit_exact_results as exact_results
 from transit_evaluation import METHOD_PHRASES, evaluate_network, stops_with_unreachable_demand
@@ -43,12 +44,27 @@ def _de_int(x):
 
 @st.cache_data(show_spinner=False, max_entries=8)
 def _exact_instance(n, k, length, seed, hub_conc, n_hubs):
-    """Kleine Instanz mit beiden Heuristiken und dem exakten Optimum (vollständige Aufzählung); zwischengespeichert je Einstellung."""
+    """Kleine Instanz mit beiden Heuristiken; zwischengespeichert je Einstellung."""
     coords_e, demand_e, hubs_e = generate_stops_and_demand(n, seed, hub_concentration=hub_conc, n_hubs=n_hubs)
-    result = exact.solve_exact(coords_e, demand_e, k, length)
     star = star_network_construction(coords_e, demand_e, k, length)
     greedy = demand_greedy_construction(coords_e, demand_e, k, length)
-    return coords_e, demand_e, hubs_e, result, star, greedy, evaluate_network(star, demand_e), evaluate_network(greedy, demand_e)
+    return coords_e, demand_e, hubs_e, star, greedy, evaluate_network(star, demand_e), evaluate_network(greedy, demand_e)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _enum_result(n, k, length, seed, hub_conc, n_hubs):
+    """Exaktes Optimum durch vollständige Aufzählung (nur für aufzählbare Instanzen aufrufen)."""
+    coords_e, demand_e, _ = generate_stops_and_demand(n, seed, hub_concentration=hub_conc, n_hubs=n_hubs)
+    return exact.solve_exact(coords_e, demand_e, k, length)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def _cpsat_result(n, k, length, seed, hub_conc, n_hubs, limit):
+    """CP-SAT-Modell mit Zeitlimit; die Heuristik mit der besseren direkten Nachfrage dient als Startlösung."""
+    coords_e, demand_e, _ = generate_stops_and_demand(n, seed, hub_concentration=hub_conc, n_hubs=n_hubs)
+    greedy = demand_greedy_construction(coords_e, demand_e, k, length)
+    return cpsat.solve_cpsat(demand_e, k, length, time_limit=float(limit), hint_lines=greedy)
+
 
 st.title("🚌 Liniennetz-Design für den öffentlichen Nahverkehr")
 st.markdown(
@@ -211,7 +227,7 @@ st.caption(
 st.markdown("---")
 
 with st.expander("🔧 Wie wir das erreichen – vollständiger Methodenvergleich", expanded=False):
-    tabs = st.tabs(["⭐ Sternnetz", "📈 Nachfrage-optimiert", "📊 Vergleich", "🎯 Exakt (kleine Instanz)"])
+    tabs = st.tabs(["⭐ Sternnetz", "📈 Nachfrage-optimiert", "📊 Vergleich", "🎯 Optimum (exakt und CP-SAT)"])
 
     with tabs[0]:
         st.caption("Radiales Netz vom nachfragestärksten Knotenpunkt aus - einfach und nachvollziehbar, aber nicht an der tatsächlichen Nachfrage ausgerichtet.")
@@ -241,54 +257,84 @@ with st.expander("🔧 Wie wir das erreichen – vollständiger Methodenvergleic
     with tabs[3]:
         st.markdown(
             """
-**Wie weit sind die beiden Heuristiken vom Optimum entfernt?** Auf **kleinen** Instanzen lässt sich das Optimum **vollständig aufzählen**. Zwei Beobachtungen machen das möglich:
-Die Bewertung hängt nur davon ab, *welche* Haltestellen eine Linie verbindet, nicht von ihrer Reihenfolge, und eine zusätzliche Haltestelle auf einer Linie verschlechtert keine Erreichbarkeit.
-Es genügt also, alle Netze aus verschiedenen Linien mit jeweils der **vollen** Haltestellenzahl auszuprobieren. Bewertet wird nach der Regel der Primäransicht: erst die kleinste nicht erreichbare Nachfrage,
-dann die größte Nachfrage ohne Umstieg. Zusätzlich steht das Optimum der Nachfrage ohne Umstieg allein da (obere Schranke für jede Heuristik).
+**Wie weit sind die beiden Heuristiken vom Optimum entfernt?** Zwei exakte Verfahren rechnen dieselbe Aufgabe: eine **vollständige Aufzählung** (bis 3 Millionen Netze, also etwa 10 Haltestellen) und ein
+**CP-SAT-Modell** (OR-Tools) für größere Instanzen. Bewertet wird nach der Regel der Primäransicht: erst die kleinste nicht erreichbare Nachfrage, dann die größte Nachfrage ohne Umstieg.
 
-Haltestellenmuster und Nachfrage kommen aus den Reglern der Seitenleiste (Zufalls-Seed, Pendler-Konzentration, Hubs); Anzahl der Haltestellen, Linien und Linienlänge stellen Sie hier getrennt ein, weil große Netze nicht aufzählbar sind.
+- *Aufzählung:* Die Bewertung hängt nur davon ab, *welche* Haltestellen eine Linie verbindet, nicht von der Reihenfolge, und eine zusätzliche Haltestelle verschlechtert nie eine Erreichbarkeit. Es genügt, alle Netze aus
+  Linien mit der **vollen** Haltestellenzahl auszuprobieren. Das Ergebnis ist exakt.
+- *CP-SAT:* Ein Modell mit einer Ja/Nein-Entscheidung je Linie und Haltestelle, in zwei Stufen (erst die erreichbare Nachfrage, dann die direkte). Findet es das Optimum innerhalb des Zeitlimits, ist es **bewiesen**;
+  sonst steht die beste gefundene Lösung mit einer **Schranke** da, und der Abstand zur Schranke ist die Obergrenze für den Abstand zum Optimum. Wo beide Verfahren rechnen, müssen sie dasselbe Optimum finden.
+
+Haltestellenmuster und Nachfrage kommen aus den Reglern der Seitenleiste (Zufalls-Seed, Pendler-Konzentration, Hubs); Haltestellen, Linien und Linienlänge stellen Sie hier getrennt ein.
 """
         )
-        ex1, ex2, ex3 = st.columns(3)
-        ex_n = ex1.slider("Haltestellen (kleine Instanz)", 6, 10, 8, key="exact_n")
-        ex_k = ex2.slider("Linien", 2, 3, 3, key="exact_k")
-        ex_len = ex3.slider("Max. Haltestellen je Linie", 3, 6, 5, key="exact_len")
+        ex1, ex2, ex3, ex4 = st.columns(4)
+        ex_n = ex1.slider("Haltestellen", 6, 20, 8, key="exact_n")
+        ex_k = ex2.slider("Linien", 2, 4, 3, key="exact_k")
+        ex_len = ex3.slider("Max. Haltestellen je Linie", 3, 8, 5, key="exact_len")
+        ex_limit = ex4.select_slider("Zeitlimit CP-SAT (s)", options=[5, 10, 30, 60], value=10, key="exact_limit")
         ex_combos = exact.n_combinations(ex_n, ex_k, ex_len)
+        enum_ok = ex_combos <= exact.MAX_COMBINATIONS
         biggest = next((c for c in exact_results.configs() if (c["n"], c["k"], c["L"]) == (10, 3, 5)), None)
         st.caption(
-            f"Aufzuzählen: {_de_int(exact.n_candidates(ex_n, ex_len))} Kandidaten-Linien, daraus {_de_int(ex_combos)} Netze"
-            + (f" (das größte Beispiel mit 10 Haltestellen, 3 Linien und 5 Haltestellen je Linie dauerte bei der Messreihe {exact_results.stat_text(biggest['solve_seconds'], 1)} s je Instanz auf dem Entwicklungsrechner; auf dem Server kann es länger dauern)." if biggest else ".")
+            (f"Aufzählung: {_de_int(ex_combos)} Netze aus {_de_int(exact.n_candidates(ex_n, ex_len))} Kandidaten-Linien"
+             + (f" (das größte Beispiel mit 10 Haltestellen, 3 Linien und 5 Haltestellen je Linie dauerte bei der Messreihe {exact_results.stat_text(biggest['solve_seconds'], 1)} s je Instanz)." if biggest else ".")
+             if enum_ok else f"Aufzählung nicht möglich: {_de_int(ex_combos)} Netze sind mehr als die Grenze von {_de_int(exact.MAX_COMBINATIONS)}; hier rechnet nur CP-SAT.")
+            + " Auf dem Server kann es länger dauern; das Zeitlimit gilt für die gesamte CP-SAT-Rechnung."
         )
         ex_key = (ex_n, ex_k, ex_len, int(seed), float(hub_concentration), int(n_hubs))
-        if st.button("Optimum berechnen (alle Netze aufzählen)", key="exact_start"):
-            st.session_state["exact_done"] = ex_key
-        if st.session_state.get("exact_done") == ex_key:
-            with st.spinner(f"Zähle {_de_int(ex_combos)} Netze auf …"):
-                e_coords, e_demand, e_hubs, e_res, e_star, e_greedy, e_stats_star, e_stats_greedy = _exact_instance(*ex_key)
-            upper = e_res.stats_direct["direct_pct"]
+        if st.button("Optimum berechnen", key="exact_start"):
+            st.session_state["exact_done"] = (ex_key, ex_limit)
+        if st.session_state.get("exact_done") == (ex_key, ex_limit):
+            e_coords, e_demand, e_hubs, e_star, e_greedy, e_stats_star, e_stats_greedy = _exact_instance(*ex_key)
+            e_enum = None
+            if enum_ok:
+                with st.spinner(f"Zähle {_de_int(ex_combos)} Netze auf …"):
+                    e_enum = _enum_result(*ex_key)
+            with st.spinner(f"CP-SAT rechnet (höchstens {ex_limit} s) …"):
+                e_cp = _cpsat_result(*ex_key, ex_limit)
+            if e_enum is not None:
+                best_lines, best_stats, best_label = e_enum.lines_lex, e_enum.stats_lex, "Optimum (Auswahlregel der App, Aufzählung)"
+                upper, upper_label = e_enum.stats_direct["direct_pct"], "Obere Schranke: Optimum der Nachfrage ohne Umstieg (Aufzählung)"
+            elif e_cp.proven:
+                best_lines, best_stats, best_label = e_cp.lines, e_cp.stats, "Optimum (Auswahlregel der App, CP-SAT bewiesen)"
+                upper, upper_label = e_cp.bound_direct_pct, "Schranke der Nachfrage ohne Umstieg bei kleinster nicht erreichbarer Nachfrage (CP-SAT)"
+            else:
+                best_lines, best_stats, best_label = e_cp.lines, e_cp.stats, "Beste gefundene Lösung (CP-SAT, nicht bewiesen)"
+                upper, upper_label = e_cp.bound_direct_pct, "Schranke der Nachfrage ohne Umstieg bei kleinster nicht erreichbarer Nachfrage (CP-SAT)"
             rows_e = []
-            for label, stats_e in (("Sternnetz", e_stats_star), ("Nachfrage-optimiert", e_stats_greedy), ("Optimum (Auswahlregel der App)", e_res.stats_lex),
-                                   ("Obere Schranke: Optimum der Nachfrage ohne Umstieg", e_res.stats_direct)):
-                rows_e.append({"Netz": label, "Ohne Umstieg": f"{_de(stats_e['direct_pct'], 1)}%", "Mit 1 Umstieg": f"{_de(stats_e['one_transfer_pct'], 1)}%",
-                               "Nicht erreichbar": f"{_de(stats_e['unreachable_pct'], 1)}%", "Abstand zur oberen Schranke (Prozentpunkte)": _de(upper - stats_e['direct_pct'], 1)})
+            for label, stats_e in (("Sternnetz", e_stats_star), ("Nachfrage-optimiert", e_stats_greedy), (best_label, best_stats), (upper_label, None)):
+                if stats_e is None:
+                    rows_e.append({"Netz": label, "Ohne Umstieg": f"{_de(upper, 1)}%", "Mit 1 Umstieg": "–", "Nicht erreichbar": "–", "Abstand zur Schranke (Prozentpunkte)": "–"})
+                else:
+                    rows_e.append({"Netz": label, "Ohne Umstieg": f"{_de(stats_e['direct_pct'], 1)}%", "Mit 1 Umstieg": f"{_de(stats_e['one_transfer_pct'], 1)}%",
+                                   "Nicht erreichbar": f"{_de(stats_e['unreachable_pct'], 1)}%", "Abstand zur Schranke (Prozentpunkte)": _de(max(0.0, upper - stats_e['direct_pct']), 1)})
             st.dataframe(pd.DataFrame(rows_e), width="stretch", hide_index=True)
-            gap_g, gap_s = upper - e_stats_greedy["direct_pct"], upper - e_stats_star["direct_pct"]
+            gap_g, gap_s = max(0.0, upper - e_stats_greedy["direct_pct"]), max(0.0, upper - e_stats_star["direct_pct"])
             st.markdown(
-                f"Bei {ex_n} Haltestellen, {ex_k} Linien und höchstens {ex_len} Haltestellen je Linie liegt die nachfrage-optimierte Heuristik {_de(gap_g, 1)} Prozentpunkte unter der oberen Schranke der Nachfrage ohne Umstieg, "
-                f"das Sternnetz {_de(gap_s, 1)}. Aufgezählt wurden {_de_int(e_res.n_combinations)} Netze in {_de(e_res.seconds, 2)} s."
+                f"Bei {ex_n} Haltestellen, {ex_k} Linien und höchstens {ex_len} Haltestellen je Linie liegt die nachfrage-optimierte Heuristik {_de(gap_g, 1)} Prozentpunkte unter der "
+                + ("oberen Schranke" if e_enum is not None or e_cp.proven else "Schranke") + f" der Nachfrage ohne Umstieg, das Sternnetz {_de(gap_s, 1)}."
             )
-            if e_res.stats_lex["unreachable_pct"] > 0:
-                st.caption(f"Auch das Optimum lässt {_de(e_res.stats_lex['unreachable_pct'], 1)} % der Nachfrage unerreichbar: Bei dieser Zahl und Länge der Linien kann es nicht alle Haltestellenpaare mit höchstens einem Umstieg verbinden.")
+            cp_line = (f"CP-SAT: {'bewiesen optimal' if e_cp.proven else 'Zeitlimit erreicht'} nach {_de(e_cp.seconds, 1)} s (Stufe 1: {e_cp.nodes_stage[0][0]}"
+                       + (f", Stufe 2: {e_cp.nodes_stage[1][0]}" if len(e_cp.nodes_stage) > 1 else "") + f"); Lücke zur Schranke {_de(e_cp.gap_pp, 1)} Prozentpunkte.")
+            enum_line = f" Aufzählung: {_de_int(e_enum.n_combinations)} Netze in {_de(e_enum.seconds, 2)} s." if e_enum is not None else ""
+            st.caption(cp_line + enum_line)
+            if e_enum is not None and e_cp.proven:
+                same = (round(e_cp.stats["unreachable_demand"], 6), -round(e_cp.stats["direct_demand"], 6)) == (round(e_enum.stats_lex["unreachable_demand"], 6), -round(e_enum.stats_lex["direct_demand"], 6))
+                (st.success if same else st.error)("Beide Verfahren finden dasselbe Optimum." if same else "Die beiden Verfahren widersprechen sich: Das ist ein Fehler, bitte melden.")
+            if best_stats["unreachable_pct"] > 0:
+                st.caption(f"Auch das beste Netz lässt {_de(best_stats['unreachable_pct'], 1)} % der Nachfrage unerreichbar: Bei dieser Zahl und Länge der Linien kann es nicht alle Haltestellenpaare mit höchstens einem Umstieg verbinden.")
             mc1, mc2 = st.columns(2)
             with mc1:
                 st.markdown("**Nachfrage-optimiert**")
                 st.plotly_chart(build_network_figure(e_coords, e_greedy, e_hubs, stops_with_unreachable_demand(e_greedy, e_demand)), width="stretch", key="exact_map_greedy")
             with mc2:
-                st.markdown("**Optimum**")
-                st.plotly_chart(build_network_figure(e_coords, e_res.lines_lex, e_hubs, stops_with_unreachable_demand(e_res.lines_lex, e_demand)), width="stretch", key="exact_map_opt")
+                st.markdown("**Optimum**" if (e_enum is not None or e_cp.proven) else "**Beste gefundene Lösung**")
+                ordered = [exact.order_line(e_coords, line) if line else [] for line in best_lines]
+                st.plotly_chart(build_network_figure(e_coords, ordered, e_hubs, stops_with_unreachable_demand(ordered, e_demand)), width="stretch", key="exact_map_opt")
             st.caption("Die Reihenfolge der Haltestellen im Optimum ist nur für die Karte gewählt (Nächster-Nachbar-Weg); die Bewertung ignoriert sie. Bei Gleichstand gewinnt die Aufzählung mit den kleinsten Haltestellen-Indizes.")
 
-        st.markdown("**Vorgerechnet über 100 Zufalls-Seeds je Konfiguration** (Pendler-Konzentration 0,5, zwei Hubs; Mittel ± Standardfehler; Optimum jeweils vollständig aufgezählt):")
+        st.markdown("**Vorgerechnet über 100 Zufalls-Seeds je Konfiguration** (Aufzählung; Pendler-Konzentration 0,5, zwei Hubs; Mittel ± Standardfehler):")
         rows_r = []
         for c in exact_results.configs():
             for key_m, label_m in (("star", "Sternnetz"), ("greedy", "Nachfrage-optimiert")):
@@ -297,7 +343,30 @@ Haltestellenmuster und Nachfrage kommen aus den Reglern der Seitenleiste (Zufall
                                "Optimum ohne Umstieg (%)": exact_results.stat_text(c["exakt"]["direct_obere_schranke"]), "Abstand zur oberen Schranke (Punkte)": exact_results.stat_text(m["luecke_direkt_zur_oberen_schranke"]),
                                "Nicht erreichbar (%)": exact_results.stat_text(m["unreachable"]), "Optimum nach Auswahlregel getroffen": exact_results.share_text(m["optimum_getroffen"])})
         st.dataframe(pd.DataFrame(rows_r), width="stretch", hide_index=True)
-        st.caption("Das Optimum ist nur die Obergrenze für die Qualität einer Heuristik auf dieser vereinfachten Aufgabe (keine Fahrzeiten, keine Takte, keine Umstiegszeiten) und nur für kleine Instanzen berechenbar.")
+        st.caption("Das Optimum ist nur die Obergrenze für die Qualität einer Heuristik auf dieser vereinfachten Aufgabe (keine Fahrzeiten, keine Takte, keine Umstiegszeiten).")
+        cp = exact_results.load_cpsat()
+        agree = cp["uebereinstimmung"]
+        st.markdown("**CP-SAT: Übereinstimmung, Skalierung und Modellverbesserungen** (vorgerechnet; Zeitlimit "
+                    f"{cp['meta']['zeitlimit_s']:.0f} s je Instanz, {cp['meta']['workers']} Arbeiter, OR-Tools {cp['meta']['ortools']}; Zeiten auf einem Entwicklungsrechner, nicht auf dem Server):")
+        st.markdown(
+            f"Auf {agree['instanzen']} kleinen Instanzen (7 bis 10 Haltestellen, 2 bis 3 Linien) beweist CP-SAT das Optimum in {exact_results.share_text(agree['bewiesen'])} Fällen und findet in {exact_results.share_text(agree['gleiches_optimum'])} "
+            f"dasselbe Optimum wie die Aufzählung (Mittel {exact_results.stat_text(agree['sekunden_cpsat'], 2)} s gegen {exact_results.stat_text(agree['sekunden_aufzaehlung'], 2)} s)."
+        )
+        rows_c = []
+        for c in cp["skalierung"]:
+            rows_c.append({"Instanz": f"{c['n']} Haltestellen, {c['k']} Linien, höchstens {c['L']} je Linie", "Bewiesen": exact_results.share_text(c["bewiesen"]), "Sekunden (Mittel)": exact_results.stat_text(c["sekunden"], 1),
+                           "Lücke zur Schranke (Punkte)": exact_results.stat_text(c["luecke_pp"]), "CP-SAT ohne Umstieg (%)": exact_results.stat_text(c["cpsat_direkt"]), "Nachfrage-optimiert (%)": exact_results.stat_text(c["greedy_direkt"]),
+                           "CP-SAT besser um (Punkte)": exact_results.stat_text(c["verbesserung_gegen_greedy"]), "Heuristik höchstens unter dem Optimum (Punkte)": exact_results.stat_text(c["greedy_hoechstens_unter_optimum"])})
+        st.dataframe(pd.DataFrame(rows_c), width="stretch", hide_index=True)
+        st.caption("Zehn Zufalls-Seeds je Zeile. „Höchstens unter dem Optimum“ ist die Schranke minus der Heuristik; die Schranke ist die obere Grenze der Nachfrage ohne Umstieg bei kleinster nicht erreichbarer Nachfrage. "
+                   "Mit vier Linien und ab 12 Haltestellen beweist CP-SAT im Zeitlimit kein Optimum, liefert aber bessere Netze als die Heuristik und eine Schranke für ihren Abstand.")
+        ab = cp["ablation"]["varianten"]
+        rows_a = [{"Modell": v["label"], "Bewiesen (von 8 Instanzen)": exact_results.share_text(v["bewiesen"]).split(" von ")[0], "Summe der Sekunden": f"{v['summe_sekunden']:.0f}".replace(".", ","),
+                   "Median der Sekunden": f"{v['sekunden']['med']:.1f}".replace(".", ",")} for v in ab.values()]
+        st.dataframe(pd.DataFrame(rows_a), width="stretch", hide_index=True)
+        st.caption("Wirkung der Modellverbesserungen (8 Instanzen mit 10 bis 12 Haltestellen und 3 Linien, je ein Lauf, Zeitlimit "
+                   f"{cp['meta']['zeitlimit_s']:.0f} s; die Zeiten schwanken von Lauf zu Lauf). Die Verbesserungen zusammen sparen den größten Teil der Zeit; einzeln wirken lex_symmetry, line_cuts und compact_reach, "
+                   "während exact_size, hint und two_stage in dieser Reihe keinen messbaren Zeitgewinn bringen (two_stage macht die Schranke lesbar, hint hilft bei großen Instanzen mit einer guten Startlösung).")
 
 with st.expander("Wie funktioniert diese Demo?"):
     st.markdown(

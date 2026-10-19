@@ -38,12 +38,14 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
 | `transit_evaluation.py` | Umsteige-Bewertung (direkt / genau 1 Umstieg / nicht erreichbar) |
 | `transit_visualization.py` | 2D-Netzkarte (Plotly) |
 | `transit_exact.py` | exaktes Optimum auf kleinen Instanzen (vollständige Aufzählung, Exakt-Tab) |
-| `transit_exact_results.py` | Laden der vorgerechneten Messreihe zum Exakt-Tab |
+| `transit_cpsat.py` | CP-SAT-Modell (OR-Tools) für größere Instanzen: zweistufig, mit Schranke |
+| `transit_exact_results.py` | Laden der vorgerechneten Messreihen zum Exakt-Tab |
 | `transit_pdf_export.py` | PDF-Liniennetzplan-Erzeugung |
 | `transit_ui_panel.py` | Wiederverwendbares UI-Panel je Heuristik |
 | `transit_presets.py` | Beispielszenarien, Permalink-Logik (`SETTING_SPECS`) |
 | `tools/sweep_exact.py` | Messreihe: beide Heuristiken gegen das exakte Optimum (schreibt `data/exact_results.json`) |
-| `data/exact_results.json` | vorgerechnete Messreihe zum Exakt-Tab |
+| `tools/sweep_cpsat.py` | Messreihe: CP-SAT gegen Aufzählung, Modellverbesserungen, Skalierung (schreibt `data/cpsat_results.json`) |
+| `data/exact_results.json`, `data/cpsat_results.json` | vorgerechnete Messreihen zum Exakt-Tab |
 
 ## Funktionsumfang
 
@@ -70,7 +72,7 @@ Von Anfang an modular gebaut (Lehre aus den ersten beiden Demos):
   direkt, kein Algorithmus-Name in der Überschrift, Methode als kleine Caption
   genannt; die grüne Erfolgsmeldung nennt die tatsächlich beste
   Methode (je nach Szenario Sternnetz oder nachfrage-optimiert). Vollständiger Methodenvergleich liegt im Expander "Wie wir das erreichen".
-- **Exakt-Tab (kleine Instanzen):** Auf Instanzen mit bis zu 10 Haltestellen und höchstens 3 Linien wird das Optimum vollständig aufgezählt und neben beide Heuristiken gestellt (siehe „Exakt-Tab“ unten).
+- **Tab „Optimum (exakt und CP-SAT)“:** Auf Instanzen mit bis zu 10 Haltestellen wird das Optimum vollständig aufgezählt, auf Instanzen bis 20 Haltestellen und 4 Linien rechnet ein CP-SAT-Modell (OR-Tools) mit Zeitlimit und Schranke; beide stehen neben den Heuristiken (siehe „Exakt-Tab“ unten).
 - **Animation:** Schritt-Regler + Auto-Play zeigt, wie sich die Servicequalität
   aufbaut, während Linie für Linie hinzukommt.
 - **Drei Ein-Klick-Beispielszenarien:** Kompaktstadt, Pendlerstadt, Mehrere Zentren.
@@ -136,6 +138,43 @@ ausgewiesen (obere Schranke für jede Heuristik). Der Tab rechnet eine Instanz a
 - **Grenzen:** Das Optimum gilt nur für die vereinfachte Aufgabe dieser Demo (keine Fahrzeiten, Takte oder Umstiegszeiten) und nur für kleine Instanzen; die Aussage „nahe am Optimum“ ist keine Aussage über die 20-Haltestellen-Szenarien der Hauptansicht. Das Sternnetz ist zudem eine bewusst einfache Baseline.
 - **Verifikation (`tests/test_exact.py`):** Das Optimum stimmt mit einer unabhängigen Vollaufzählung über *alle* Haltestellenmengen (auch kürzere Linien) und der Bewertungsfunktion der App überein; keine Heuristik schlägt es; die interne Bewertung entspricht `evaluate_network`; die Messreihe ist in `tests/test_exact_results.py` nachgerechnet.
 
+### CP-SAT für größere Instanzen (OR-Tools)
+
+Die Aufzählung endet bei etwa 10 Haltestellen. Für größere Instanzen gibt es `transit_cpsat.py`: ein CP-SAT-Modell mit einer Ja/Nein-Entscheidung je Linie und Haltestelle, in **zwei Stufen** (erst die erreichbare Nachfrage, dann bei festgehaltener erreichbarer Nachfrage
+die direkte). Findet es das Optimum im Zeitlimit, ist es bewiesen; sonst steht die beste gefundene Lösung mit einer **Schranke** da, und der Abstand zur Schranke begrenzt den Abstand zum Optimum in Prozentpunkten der direkten Nachfrage.
+Die Aufzählung bleibt als unabhängiges Orakel: Jede Modellvariante muss auf kleinen Instanzen denselben Optimalwert finden (`tests/test_cpsat.py`).
+
+- **Übereinstimmung:** Auf 60 kleinen Instanzen (7 bis 10 Haltestellen, 2 bis 3 Linien) beweist CP-SAT das Optimum in 60 von 60 Fällen und findet in 60 von 60 dasselbe Optimum wie die Aufzählung (Mittel 0,21 ± 0,04 s gegen 0,50 ± 0,13 s je Instanz).
+- **Modellverbesserungen:** Das einfache Grundmodell beweist von 8 Instanzen mit 10 bis 12 Haltestellen und 3 Linien 7 in 136 s (Zeitlimit 30 s, je ein Lauf); mit allen Verbesserungen beweist es 8 in 23 s, der Median sinkt von 16,3 s auf 1,0 s. Die Wirkung steckt in drei Bausteinen: lex_symmetry (strenge Ordnung der austauschbaren Linien), line_cuts (je Linie höchstens m − 1 Paare je Haltestelle und m (m − 1) / 2 Paare, verschärft die lineare Relaxation) und compact_reach (je Linie und Haltestelle eine Variable statt je Paar und Linienpaar); ohne einen von ihnen steigt die Summe auf 47, 47 bzw. 40 s. exact_size, hint (Startlösung der Heuristik) und two_stage zeigen in dieser Reihe keinen messbaren Zeitgewinn (Summe 16, 19 bzw. 29 s); two_stage macht die Schranke in Prozentpunkten lesbar.
+- **In Vorversuchen ohne messbare Wirkung und deshalb nicht im Code:** eine Obergrenze je Linie aus der besten m-Menge, Mindestabdeckung je Haltestelle in der zweiten Stufe und die Solver-Parameter `linearization_level`, `symmetry_level` und `cp_model_probing_level`.
+
+Skalierung (10 Zufalls-Seeds je Zeile, Zeitlimit 30 s, 8 Arbeiter; Mittel ± Standardfehler; „Punkte“ = Prozentpunkte der direkten Nachfrage):
+
+| Instanz (Haltestellen, Linien, Länge) | bewiesen | Sekunden | Lücke zur Schranke | CP-SAT ohne Umstieg | nachfrage-optimiert | CP-SAT besser um (Punkte) | Heuristik höchstens unter dem Optimum (Punkte) |
+|---|---|---|---|---|---|---|---|
+| 10, 3, 5 | 10 von 10 | 1,0 ± 0,1 | 0,0 ± 0,0 | 83,9 ± 0,5 % | 81,2 ± 1,2 % | 2,7 ± 0,9 | 2,7 ± 0,9 |
+| 12, 3, 6 | 10 von 10 | 16,1 ± 1,8 | 0,0 ± 0,0 | 83,3 ± 0,2 % | 80,2 ± 0,4 % | 3,1 ± 0,3 | 3,1 ± 0,3 |
+| 12, 4, 5 | 0 von 10 | 30,0 ± 0,0 | 4,0 ± 0,2 | 79,9 ± 0,3 % | 76,0 ± 0,5 % | 3,9 ± 0,3 | 7,9 ± 0,3 |
+| 14, 4, 6 | 0 von 10 | 30,0 ± 0,0 | 4,2 ± 0,2 | 83,0 ± 0,4 % | 76,7 ± 0,4 % | 6,2 ± 0,3 | 10,4 ± 0,2 |
+| 16, 4, 6 | 0 von 10 | 30,1 ± 0,0 | 5,1 ± 0,1 | 72,5 ± 0,4 % | 70,4 ± 0,5 % | 2,1 ± 0,2 | 7,2 ± 0,2 |
+| 20, 4, 7 | 0 von 10 | 30,1 ± 0,0 | 4,7 ± 0,1 | 67,2 ± 0,3 % | 64,8 ± 0,4 % | 2,4 ± 0,2 | 7,1 ± 0,2 |
+
+Mit 3 Linien beweist CP-SAT bis 12 Haltestellen; mit 4 Linien und ab 12 Haltestellen 0 von 10 Beweisen im Zeitlimit, die Lücke bleibt bei 4,0 bis 5,1 Punkten. CP-SAT findet dort trotzdem Netze, die 2,1 bis 6,2 Punkte besser sind als die Heuristik, und eine Schranke dafür, wie weit diese höchstens vom Optimum entfernt ist. Bei 20 Haltestellen und 4 Linien (Größe der Hauptansicht) liegt die Heuristik demnach höchstens 7,1 ± 0,2 Punkte unter dem Optimum.
+Die Zeiten stammen von einem Entwicklungsrechner und schwanken zwischen Läufen; auf Streamlit Cloud (wenige Kerne) dauert es länger, das Zeitlimit gilt für die gesamte Rechnung.
+
+Wirkung der Modellverbesserungen auf 8 Instanzen (Zeitlimit 30 s):
+
+| Modell | bewiesen | Summe der Sekunden | Median |
+|---|---|---|---|
+| Grundmodell (alle Verbesserungen aus) | 7 von 8 | 136 s | 16,3 s |
+| alle Verbesserungen | 8 von 8 | 23 s | 1,0 s |
+| ohne exact_size | 8 von 8 | 16 s | 0,7 s |
+| ohne lex_symmetry | 7 von 8 | 47 s | 2,1 s |
+| ohne compact_reach | 8 von 8 | 40 s | 1,7 s |
+| ohne hint | 8 von 8 | 19 s | 0,8 s |
+| ohne two_stage | 8 von 8 | 29 s | 1,2 s |
+| ohne line_cuts | 7 von 8 | 47 s | 1,7 s |
+
 ## Umsteige-Bewertungslogik: die neue, risikoreichste Komponente
 
 Anders als bei den ersten beiden Demos gab es hier keine Vorlage aus einem bereits
@@ -195,7 +234,7 @@ Erklärtexte gegen tatsächliches Codeverhalten.
 - Keine Fahrzeugkapazität oder Umlaufplanung
 - Kein dritter/vierter Ansatz (metaheuristisch, z. B. genetischer Algorithmus) - zwei
   Methoden mit echtem Charakterunterschied reichen für die Kernaussage
-- Kein exakter Löser für die Szenarien der Hauptansicht (20 Haltestellen sind nicht aufzählbar); der Exakt-Tab rechnet nur kleine Instanzen mit bis zu 10 Haltestellen
+- Kein bewiesenes Optimum für die Szenarien der Hauptansicht (20 Haltestellen, 4 Linien): Die Aufzählung ist dort unmöglich, CP-SAT beweist im Zeitlimit nichts, liefert aber bessere Netze und eine Schranke (siehe Exakt-Tab)
 - Kein Mandl-Benchmark: Dessen Zielgröße (mittlere Reisezeit auf einem Straßennetz) hat diese Demo nicht, die Ergebnisse wären mit der Literatur nicht vergleichbar
 - Haltestellen nicht editierbar (Nachfrage ist an die Generierung gekoppelt - Bearbeiten
   einzelner Positionen hätte eine Nachfrage-Neuberechnung erfordert, für den Scope
@@ -240,7 +279,7 @@ pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-99 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
+133 Tests, laufen automatisch bei jedem Push/PR über GitHub Actions.
 
 ## 3. Kostenlos online stellen (Streamlit Community Cloud)
 
