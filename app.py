@@ -78,6 +78,17 @@ allem eine Kennzahl: Wie viele Fahrgäste erreichen ihr Ziel ohne Umzusteigen?
 """
 )
 
+# erklaerseite:einfach:start (erzeugt von tools/set_demo_explainer.py (Website-Repo) aus tools/content/explainers/liniennetz-erklaert.json, nicht von Hand ändern)
+with st.expander("💬 In einfachen Worten"):
+    st.markdown(
+        """
+Eine Stadt hat Haltestellen und weiß, wie viele Fahrgäste zwischen je zwei Haltestellen fahren wollen. Gewählt wird, welche Haltestellen jede Linie verbindet. Die Demo vergleicht zwei Verfahren. Das **Sternnetz** lässt alle Linien von einem Zentrum ausgehen. Die **nachfrage-optimierte Liniengenerierung** legt Linien dorthin, wo die meisten Fahrgäste hinwollen. Gezählt wird, wie viele Fahrgäste ohne Umstieg, mit einem Umstieg oder gar nicht ankommen. Welches Netz die Hauptansicht zeigt, entscheidet eine feste Regel: Zuerst zählt, wie wenige Fahrgäste unerreichbar bleiben, dann, wie viele ohne Umstieg fahren. Auf kleinen Städten rechnet die Demo zusätzlich das beste Netz aus und zeigt, wie weit beide Verfahren davon entfernt liegen. Fahrzeiten und Takte kommen nicht vor.
+
+[Ausführlich und verständlich erklärt, mit Fachteil](https://sebastianhanisch.net/liniennetz-erklaert.html)
+        """
+    )
+# erklaerseite:einfach:end
+
 st.caption("🎯 Schnellstart – ein Beispielszenario laden:")
 preset_col1, preset_col2, preset_col3 = st.columns(3)
 with preset_col1:
@@ -369,6 +380,22 @@ Haltestellenmuster und Nachfrage kommen aus den Reglern der Seitenleiste (Zufall
                    "während exact_size, hint und two_stage in dieser Reihe keinen messbaren Zeitgewinn bringen (two_stage macht die Schranke lesbar, hint hilft bei großen Instanzen mit einer guten Startlösung).")
 
 with st.expander("Wie funktioniert diese Demo?"):
+    # erklaerseite:lesehilfe:start (erzeugt von tools/set_demo_explainer.py (Website-Repo) aus tools/content/explainers/liniennetz-erklaert.json, nicht von Hand ändern)
+    st.markdown(
+        r"""
+**Lesehilfe.** Gegeben sind $n$ Haltestellen, eine symmetrische Nachfrage $w_{ij}$ zwischen je zwei Haltestellen, die Zahl $k$ der Linien und eine Höchstzahl $L$ von Haltestellen je Linie. Gesucht ist für jede Linie $l$ die Menge $S_l$ ihrer Haltestellen, sodass zuerst die nicht erreichbare Nachfrage $U$ möglichst klein und dann die Nachfrage ohne Umstieg $D$ möglichst groß wird.
+
+| Symbol | Bedeutung |
+|---|---|
+| $n$, $k$, $L$ | Zahl der Haltestellen, Zahl der Linien, höchste Zahl von Haltestellen je Linie |
+| $w_{ij}$ | Nachfrage zwischen den Haltestellen $i$ und $j$ (symmetrisch, ganzzahlig) |
+| $S_l$ | Menge der Haltestellen der Linie $l$ |
+| $D$, $E$, $U$ | Anteil der Nachfrage ohne Umstieg, mit genau einem Umstieg bzw. nicht erreichbar (zusammen 100 %) |
+
+[Schritt für Schritt erklärt, mit Herleitung und Literatur](https://sebastianhanisch.net/liniennetz-erklaert.html#fachleute)
+        """
+    )
+    # erklaerseite:lesehilfe:end
     st.markdown(
         """
 **Nachfragematrix:** Zwischen jedem Haltestellenpaar wird eine (symmetrische) Fahrgast-
