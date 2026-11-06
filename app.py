@@ -380,22 +380,6 @@ Haltestellenmuster und Nachfrage kommen aus den Reglern der Seitenleiste (Zufall
                    "während exact_size, hint und two_stage in dieser Reihe keinen messbaren Zeitgewinn bringen (two_stage macht die Schranke lesbar, hint hilft bei großen Instanzen mit einer guten Startlösung).")
 
 with st.expander("Wie funktioniert diese Demo?"):
-    # erklaerseite:lesehilfe:start (erzeugt von tools/set_demo_explainer.py (Website-Repo) aus tools/content/explainers/liniennetz-erklaert.json, nicht von Hand ändern)
-    st.markdown(
-        r"""
-**Lesehilfe.** Gegeben sind $n$ Haltestellen, eine symmetrische Nachfrage $w_{ij}$ zwischen je zwei Haltestellen, die Zahl $k$ der Linien und eine Höchstzahl $L$ von Haltestellen je Linie. Gesucht ist für jede Linie $l$ die Menge $S_l$ ihrer Haltestellen, sodass zuerst die nicht erreichbare Nachfrage $U$ möglichst klein und dann die Nachfrage ohne Umstieg $D$ möglichst groß wird.
-
-| Symbol | Bedeutung |
-|---|---|
-| $n$, $k$, $L$ | Zahl der Haltestellen, Zahl der Linien, höchste Zahl von Haltestellen je Linie |
-| $w_{ij}$ | Nachfrage zwischen den Haltestellen $i$ und $j$ (symmetrisch, ganzzahlig) |
-| $S_l$ | Menge der Haltestellen der Linie $l$ |
-| $D$, $E$, $U$ | Anteil der Nachfrage ohne Umstieg, mit genau einem Umstieg bzw. nicht erreichbar (zusammen 100 %) |
-
-[Schritt für Schritt erklärt, mit Herleitung und Literatur](https://sebastianhanisch.net/liniennetz-erklaert.html#fachleute)
-        """
-    )
-    # erklaerseite:lesehilfe:end
     st.markdown(
         """
 **Nachfragematrix:** Zwischen jedem Haltestellenpaar wird eine (symmetrische) Fahrgast-
@@ -435,6 +419,49 @@ allen Kennzahlen stehen im Vergleichs-Tab.
 Umstiegszeiten, Fahrzeugkapazität, mehrstufige Umstiege, tatsächliches Straßennetz statt
 Luftlinie) - das Grundprinzip aus Konstruktion und Bewertung bleibt aber dasselbe.
 """
+    )
+
+with st.expander("📐 Mathematische Formulierung"):
+    # erklaerseite:lesehilfe:start (erzeugt von tools/set_demo_explainer.py (Website-Repo) aus tools/content/explainers/liniennetz-erklaert.json, nicht von Hand ändern)
+    st.markdown(
+        r"""
+**Lesehilfe.** Gegeben sind $n$ Haltestellen, eine symmetrische Nachfrage $w_{ij}$ zwischen je zwei Haltestellen, die Zahl $k$ der Linien und eine Höchstzahl $L$ von Haltestellen je Linie. Gesucht ist für jede Linie $l$ die Menge $S_l$ ihrer Haltestellen, sodass zuerst die nicht erreichbare Nachfrage $U$ möglichst klein und dann die Nachfrage ohne Umstieg $D$ möglichst groß wird.
+
+| Symbol | Bedeutung |
+|---|---|
+| $n$, $k$, $L$ | Zahl der Haltestellen, Zahl der Linien, höchste Zahl von Haltestellen je Linie |
+| $w_{ij}$ | Nachfrage zwischen den Haltestellen $i$ und $j$ (symmetrisch, ganzzahlig) |
+| $S_l$ | Menge der Haltestellen der Linie $l$ |
+| $D$, $E$, $U$ | Anteil der Nachfrage ohne Umstieg, mit genau einem Umstieg bzw. nicht erreichbar (zusammen 100 %) |
+
+[Schritt für Schritt erklärt, mit Herleitung und Literatur](https://sebastianhanisch.net/liniennetz-erklaert.html#fachleute)
+        """
+    )
+    # erklaerseite:lesehilfe:end
+    st.markdown(
+        r"""
+**Aufgabe.** Gegeben sind $n$ Haltestellen, eine symmetrische ganzzahlige Nachfrage $w_{ij}=w_{ji}\ge 0$ mit $w_{ii}=0$, die Zahl $k$ der Linien und die Höchstzahl $L$ von Haltestellen je Linie. Gesucht sind Mengen $S_1,\dots,S_k\subseteq\{1,\dots,n\}$ mit $|S_l|\le L$. Fahrzeiten, Takte, Umstiegszeiten, Fahrzeugkapazitäten und das Straßennetz kommen im Modell nicht vor.
+
+**Bewertung eines Netzes.** Ein Haltestellenpaar $p=\{i,j\}$ mit $w_p>0$ gilt als
+
+- *direkt*, wenn eine Linie beide Haltestellen enthält: $i,j\in S_l$ für ein $l$;
+- *mit einem Umstieg erreichbar*, wenn es nicht direkt ist, aber zwei Linien $a,b$ mit $i\in S_a$ und $j\in S_b$ eine gemeinsame Haltestelle haben: $S_a\cap S_b\neq\emptyset$;
+- sonst *nicht erreichbar*.
+
+Mit $W=\sum_{i<j}w_{ij}$ sind $D$, $E$ und $U$ die Anteile der Nachfrage in diesen drei Klassen; sie ergeben zusammen 100 %.
+
+**Auswahlregel.** Lexikografisch: erst $U$ möglichst klein, dann $D$ möglichst groß. Mit $r_p=1$ für „direkt oder mit einem Umstieg erreichbar“ und $d_p=1$ für „direkt“ (sonst 0) ist das gleichwertig zu
+
+$$\max\;(W+1)\sum_p w_p\,r_p+\sum_p w_p\,d_p ,$$
+
+denn wegen $\sum_p w_p d_p\le W$ und ganzzahliger Nachfrage zählt eine zusätzlich erreichbare Nachfrageeinheit mehr als alle direkten Einheiten zusammen. Das CP-SAT-Modell kann alternativ in zwei Stufen rechnen: erst $\sum_p w_p r_p$ maximieren, dann bei festgehaltenem Wert $\sum_p w_p d_p$.
+
+**Dominanz.** Fügt man einer Linie eine Haltestelle hinzu, wachsen nur Mengen; weder $D$ noch $D+E$ sinken. Der exakte Teil rechnet deshalb mit Linien aus genau $m=\min(L,n)$ Haltestellen.
+
+**Exakt, durch Aufzählung.** Kandidaten sind alle $\binom{n}{m}$ Teilmengen mit $m$ Haltestellen; ein Netz wählt $k$ verschiedene Kandidaten. Es gibt $\binom{\binom{n}{m}}{k}$ Netze (`n_combinations` in `transit_exact.py`); die Aufzählung läuft nur bis zu einer Obergrenze.
+
+**Exakt, mit CP-SAT** (`transit_cpsat.py`). Binärvariablen $x_{l,s}\in\{0,1\}$ bedeuten „Haltestelle $s$ liegt auf Linie $l$“, mit $\sum_s x_{l,s}=m$ (Grundfassung: $\le m$). Je Paar gelten Obergrenzen wie $u_{l,p}\le x_{l,i}$, $u_{l,p}\le x_{l,j}$ und $d_p\le\sum_l u_{l,p}$. Weil nur maximiert wird, genügen solche Implikationen statt voller Äquivalenzen. Weitere, einzeln abschaltbare Bausteine sind eine lexikografische Ordnung der Haltestellenmengen der $k$ austauschbaren Linien (Symmetriebrechung), Schnittbedingungen je Linie und eine Startlösung aus der besten Heuristik. Findet CP-SAT das Optimum nicht innerhalb des Zeitlimits, ist das Ergebnis die beste gefundene Lösung mit einer Schranke, nicht bewiesen optimal.
+        """
     )
 
 st.markdown("---")
