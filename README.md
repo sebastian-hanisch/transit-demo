@@ -190,7 +190,7 @@ Linienliste, keine Nachfrage. Alle Fälle in `test_evaluate_network_*` festgesch
 **"Nicht erreichbar" heißt "weder direkt noch mit genau einem Umstieg".** Die Kennzahl
 `unreachable_pct` zählt auch Haltestellenpaare, die in einem zusammenhängenden Netz nur mit
 zwei oder mehr Umstiegen verbunden wären (Linie A - B - C hintereinander, Halt auf A nach
-Halt auf C). Die Oberfläche trägt das jetzt im Label ("Nicht erreichbar (>1 Umstieg nötig)",
+Halt auf C). Die Oberfläche zeigt das jetzt im Label ("Nicht erreichbar (>1 Umstieg nötig)",
 wie schon im PDF-Export); `test_pairs_needing_two_transfers_count_as_not_reachable_despite_connected_network`
 hält es fest. Wie relevant das ist, zeigt eine Stichprobe über 300 zufällige Konfigurationen
 (6-40 Haltestellen, 2-8 Linien, Länge 3-12): beim Sternnetz nie (alle Linien teilen den
